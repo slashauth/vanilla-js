@@ -1,24 +1,8 @@
-import './index.css';
-import App from './App';
-import { createRoot } from 'react-dom/client';
+import { initializedEvent } from './events';
 import { Wallet } from './wallet';
 
-const createDOMElement = () => {
-  const container = document.getElementById('root');
-  return createRoot(container);
-};
-
-const renderAppContainer = () => {
-  createDOMElement().render(<App />);
-};
-
-renderAppContainer();
-// NOTE: We are keeping the IDs in here so it's easier to get
-// started.
-
 let clientID;
-console.log(process.env.REACT_APP_BUILD);
-if (true) {
+if (process.env.REACT_APP_BUILD === 'development') {
   clientID = 'eUDLHSDMLRX1TDOQ';
 } else {
   clientID = document?.currentScript?.getAttribute('clientID');
@@ -34,8 +18,8 @@ const wallet = new Wallet({
   slashauthClientID: clientID,
 });
 document.addEventListener('DOMContentLoaded', async () => {
-  await wallet.updateWalletStatus();
-  wallet.updateConnectButton();
+  await wallet.init();
+  wallet.getConnectButton()?.dispatchEvent(initializedEvent());
 });
 
-export { renderAppContainer, Wallet };
+export { Wallet };

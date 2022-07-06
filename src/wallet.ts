@@ -6,6 +6,13 @@ import CoinbaseWalletSDK from '@coinbase/wallet-sdk';
 import { NETWORKS, NETWORK_NAME } from './constants';
 import { isMobile, objectMap } from './utils';
 import { Slashauth } from './slashauth';
+import {
+  addressChangedEvent,
+  errorEvent,
+  loginStepChangedEvent,
+} from './events';
+import { LoginStep } from './global';
+import { CodedError } from './errors';
 
 export let web3 = undefined;
 export let provider = undefined;
@@ -14,6 +21,11 @@ export let web3Modal: Web3Modal | undefined = undefined;
 export const isWeb3Initialized = () => {
   return web3 && provider;
 };
+
+interface ProviderMessage {
+  type: string;
+  data: unknown;
+}
 
 type Props = {
   forceConnect: boolean;
@@ -24,6 +36,9 @@ type Props = {
 export class Wallet {
   readonly appName: string;
   readonly infuraID: string;
+
+  _address: string | null;
+  _loginStep: LoginStep;
 
   slashauth: Slashauth;
 
@@ -40,9 +55,33 @@ export class Wallet {
     });
   }
 
+  updateLoginStep = async () => {
+    let step = LoginStep.Uninitialized;
+    const accounts = await web3?.eth.getAccounts();
+    if (accounts?.length) {
+      step = LoginStep.Connected;
+
+      if (this.slashauth.isNonceFetched(accounts[0])) {
+        step = LoginStep.ReadyToLogin;
+      }
+
+      if (!!(await this.slashauth.getTokenSilently())) {
+        step = LoginStep.LoggedIn;
+      }
+    } else {
+      step = LoginStep.Uninitialized;
+    }
+    this.loginStep = step;
+  };
+
   login = async () => {};
 
-  initWeb3Modal = (
+  init = async () => {
+    await this.updateWalletStatus();
+    this.updateConnectButton();
+  };
+
+  private initWeb3Modal = (
     forceConnect: boolean,
     isMobileOnlyInjectedProvider: boolean
   ) => {
@@ -63,7 +102,7 @@ export class Wallet {
     return web3Modal;
   };
 
-  initWeb3 = async (forceConnect = false) => {
+  private initWeb3 = async (forceConnect = false) => {
     if (isWeb3Initialized()) return;
 
     const isMobileOnlyInjectedProvider = isMobile() && window.ethereum;
@@ -83,28 +122,36 @@ export class Wallet {
       ) {
         web3Modal.clearCachedProvider();
       }
-      provider = await web3Modal.connect();
-      if (provider) {
-        let providerID;
-        if (provider.isMetaMask)
-          providerID = isMobileOnlyInjectedProvider
-            ? 'injected'
-            : 'custom-metamask';
-        if (provider.isCoinbaseWallet)
-          providerID = isMobileOnlyInjectedProvider
-            ? 'injected'
-            : 'coinbasewallet';
+      try {
+        provider = await web3Modal.connect();
+        if (provider) {
+          let providerID;
+          if (provider.isMetaMask)
+            providerID = isMobileOnlyInjectedProvider
+              ? 'injected'
+              : 'custom-metamask';
+          if (provider.isCoinbaseWallet)
+            providerID = isMobileOnlyInjectedProvider
+              ? 'injected'
+              : 'coinbasewallet';
 
-        if (providerID) web3Modal.setCachedProvider(providerID);
-      }
-      provider.on('accountsChanged', async (accounts) => {
-        if (accounts.length === 0) {
-          if (provider.close) {
-            await provider.close();
-          }
-          web3Modal.clearCachedProvider();
+          if (providerID) web3Modal.setCachedProvider(providerID);
         }
-      });
+        provider.on('accountsChanged', async (accounts: string[] | null) => {
+          if (accounts?.length === 0) {
+            if (provider?.close) {
+              await provider.close();
+            }
+            web3Modal.clearCachedProvider();
+          }
+          this.address = accounts?.at(0) || null;
+        });
+        provider.on('message', (message: ProviderMessage) => {
+          console.log(message);
+        });
+      } catch (err) {
+        throw new CodedError('Web3Modal error', err?.toString(), 4001);
+      }
     }
     web3 = provider ? new Web3(provider) : undefined;
   };
@@ -113,18 +160,17 @@ export class Wallet {
     return this.slashauth.hasRole(roleName);
   };
 
-  isWalletConnected = async () => {
+  isWalletConnected = () => {
     if (!isWeb3Initialized()) {
       return false;
     }
-    const accounts = await web3.eth.getAccounts();
-    return accounts?.length > 0;
+
+    return this.loginStep >= LoginStep.Connected;
   };
 
   disconnectWallet = () => {
     if (isWeb3Initialized()) {
       web3Modal.clearCachedProvider();
-      console.log(web3);
       if (provider?.close) {
         provider.close();
       }
@@ -203,16 +249,22 @@ export class Wallet {
     try {
       await this.initWeb3(true);
     } catch (e) {
-      if (!e.includes('Modal closed by user')) {
+      if (e?.code !== 4001) {
         alert(`Error in initWeb3 in connectWallet: ${e.toString()}`);
         console.error(e);
+        this.getConnectButton()?.dispatchEvent(
+          errorEvent({
+            error: e,
+            errorStr: 'Metamask error',
+          })
+        );
       }
       return;
     }
-    const address = await this.getWalletAddressOrConnect();
-    if (address) {
+    this.address = await this.getWalletAddressOrConnect();
+    if (this.address) {
       await this.slashauth.getNonceToSign({
-        address,
+        address: this.address,
       });
     }
     await this.updateWalletStatus();
@@ -227,19 +279,38 @@ export class Wallet {
   };
 
   updateWalletButtonText = async () => {
-    const connected = await this.isWalletConnected();
+    await this.updateLoginStep();
     const button = this.getConnectButton();
-
     if (button) {
-      if (connected) {
-        const loggedIn = await this.slashauth.getTokenSilently();
-        if (loggedIn) {
+      switch (this.loginStep) {
+        case LoginStep.Uninitialized:
+          button.textContent = 'Connect';
+          break;
+        case LoginStep.Connected:
+          // We need a two step flow here
+          try {
+            await this.slashauth.getNonceToSign({
+              address: await this.getWalletAddressOrConnect(),
+            });
+            button.textContent = 'Login';
+          } catch (err) {
+            // This is an error.
+            console.error(`Error fetching nonce to sign in: ${err}`);
+            button.dispatchEvent(
+              errorEvent({
+                error: err,
+                errorStr: 'Failed fetching nonce',
+              })
+            );
+            button.textContent = 'Connect';
+          }
+          break;
+        case LoginStep.ReadyToLogin:
+          button.textContent = 'Login';
+          break;
+        case LoginStep.LoggedIn:
           button.textContent = 'Logout';
-        } else {
-          button.textContent = 'Login with Slashauth';
-        }
-      } else {
-        button.textContent = 'Connect';
+          break;
       }
     }
   };
@@ -249,7 +320,7 @@ export class Wallet {
       await this.initWeb3();
     } catch (e: any) {
       console.log(e);
-      if (!e.includes('Modal closed by user')) {
+      if (e?.code !== 4001) {
         alert(`Error in initWeb3: ${e.toString()}`);
         console.error(e);
       }
@@ -257,32 +328,79 @@ export class Wallet {
     await this.updateWalletButtonText();
   };
 
+  private handleButtonClick = async () => {
+    const handleConnect = async () => {
+      const address = await this.getWalletAddressOrConnect(false);
+      const hasNonceFetched = this.slashauth.isNonceFetched(address);
+      const nonce = await this.slashauth.getNonceToSign({
+        address,
+      });
+      if (hasNonceFetched || !isMobile()) {
+        const signature = await this.signData(address, nonce);
+        await this.slashauth.loginNoRedirectNoPopup({
+          address,
+          signature,
+        });
+      }
+
+      this.updateWalletButtonText();
+    };
+
+    switch (this.loginStep) {
+      case LoginStep.Uninitialized:
+        await this.connectWallet();
+        if (this.address && !isMobile()) {
+          await handleConnect();
+        }
+        break;
+      case LoginStep.Connected:
+        await handleConnect();
+        break;
+      case LoginStep.ReadyToLogin:
+        const address = await this.getWalletAddressOrConnect(false);
+        const nonce = await this.slashauth.getNonceToSign({
+          address,
+        });
+        const signature = await this.signData(address, nonce);
+        await this.slashauth.loginNoRedirectNoPopup({
+          address,
+          signature,
+        });
+        this.updateWalletButtonText();
+        break;
+      case LoginStep.LoggedIn:
+        await this.slashauth.logout();
+        this.disconnectWallet();
+        break;
+    }
+  };
+
   updateConnectButton = () => {
     const walletBtn = this.getConnectButton();
-    walletBtn?.addEventListener('click', async () => {
-      const connected = await this.isWalletConnected();
-      if (connected) {
-        const loggedIn = !!(await this.slashauth.getTokenSilently());
-        if (loggedIn) {
-          await this.slashauth.logout();
-          this.disconnectWallet();
-        } else {
-          const address = await this.getWalletAddressOrConnect(false);
-          const nonce = await this.slashauth.getNonceToSign({
-            address,
-          });
-          const signature = await this.signData(address, nonce);
-          await this.slashauth.loginNoRedirectNoPopup({
-            address,
-            signature,
-          });
-          this.updateWalletButtonText();
-        }
-      } else {
-        await this.connectWallet();
-      }
-    });
+    walletBtn?.addEventListener('click', this.handleButtonClick);
   };
+
+  get loginStep() {
+    return this._loginStep;
+  }
+
+  private set loginStep(newStep: LoginStep) {
+    this._loginStep = newStep;
+    this.getConnectButton()?.dispatchEvent(
+      loginStepChangedEvent({ step: newStep })
+    );
+  }
+
+  get address() {
+    return this._address;
+  }
+
+  private set address(addr: string | null) {
+    this._address = addr;
+    this.getConnectButton()?.dispatchEvent(
+      addressChangedEvent({ address: addr })
+    );
+  }
 
   private signData = async (address: string, data: string): Promise<string> => {
     return provider?.request({
