@@ -420,7 +420,7 @@ export class Wallet {
     const walletConnectOptions = {
       rpc: objectMap(NETWORKS, (value) => value.rpcURL),
       qrcodeModalOptions: {
-        mobileLinks: ['rainbow', 'trust', 'ledger', 'gnosis'],
+        mobileLinks: ['metamask', 'rainbow', 'trust', 'ledger', 'gnosis'],
         desktopLinks: ['rainbow', 'trust', 'ledger', 'gnosis'],
       },
     };
