@@ -43,7 +43,8 @@ define release
         j.version = \"$$NEXT_VERSION\";\
         var s = JSON.stringify(j, null, 2);\
         require('fs').writeFileSync('./package.json', s);" && \
-   	git commit -m "Version $$NEXT_VERSION" -- package.json && \
+		npm i && \
+   	git commit -m "Version $$NEXT_VERSION" -- package.json package-lock.json && \
     git tag "$$NEXT_VERSION" -m "Version $$NEXT_VERSION"
 endef
 
