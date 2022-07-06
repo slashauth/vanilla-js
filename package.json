@@ -1,5 +1,5 @@
 {
-  "name": "vanilla-js",
+  "name": "@slashauth/vanilla-js",
   "version": "0.1.0",
   "private": true,
   "dependencies": {
