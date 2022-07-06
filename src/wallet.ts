@@ -4,7 +4,7 @@ import WalletConnectProvider from '@walletconnect/web3-provider';
 import CoinbaseWalletSDK from '@coinbase/wallet-sdk';
 
 import { NETWORKS, NETWORK_NAME } from './constants';
-import { isMobile, objectMap } from './utils';
+import { isMobile, ObjectMap, objectMap } from './utils';
 import { Slashauth } from './slashauth';
 import {
   addressChangedEvent,
@@ -159,6 +159,9 @@ export class Wallet {
   hasRole = async (roleName: string): Promise<boolean> => {
     return this.slashauth.hasRole(roleName);
   };
+
+  getRoleMetadata = async (roleName: string): Promise<ObjectMap | null> =>
+    this.slashauth.getRoleMetadata(roleName);
 
   isWalletConnected = () => {
     if (!isWeb3Initialized()) {
