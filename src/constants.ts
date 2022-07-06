@@ -5,6 +5,13 @@ export enum NETWORK_NAME {
   Mumbai = 80001,
 }
 
+export const DEFAULT_NOW_PROVIDER = () => Date.now();
+
+export const DEFAULT_SLASHAUTH_CLIENT = {
+  name: 'slashauth-vanilla-js',
+  version: '',
+};
+
 export const NETWORKS = {
   1: {
     name: 'Ethereum',
