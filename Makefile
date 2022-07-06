@@ -42,7 +42,7 @@ define release
         var j = require('./package.json');\
         j.version = \"$$NEXT_VERSION\";\
         var s = JSON.stringify(j, null, 2);\
-        require('fs').writeFileSync('./package.json', s);"
+        require('fs').writeFileSync('./package.json', s);" && \
    	git commit -m "Version $$NEXT_VERSION" -- package.json && \
     git tag "$$NEXT_VERSION" -m "Version $$NEXT_VERSION"
 endef
