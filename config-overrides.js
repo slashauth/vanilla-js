@@ -41,7 +41,7 @@ module.exports = function override(config) {
   const isEnvDevelopment = !isEnvProduction || process.env.REACT_APP_ENV === "development";
   config.output = config.output || {};
   config.output.libraryTarget = "umd";
-  config.output.library = "NFTComponents";
+  config.output.library = "Slashauth";
   config.output.filename = isEnvProduction
       ? 'static/js/[name].js'
       : isEnvDevelopment && 'static/js/bundle.js';
