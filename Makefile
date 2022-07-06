@@ -29,9 +29,7 @@ build-prod: install
 
 .PHONY: push-prod
 push-prod: build-prod
-	aws s3 sync build s3://${PROD_BUCKET_NAME}/${PROD_FOLDER_NAME}/${VERSION} --delete --cache-control max-age=31536000,public --region=us-west-2 --profile=debrief --exclude "static/*"
-	aws s3 sync build s3://${PROD_BUCKET_NAME}/${PROD_FOLDER_NAME}/${VERSION} --delete --cache-control max-age=31536000,public --region=us-west-2 --profile=debrief --exclude "*" --include static/css/* --content-encoding gzip
-	aws s3 sync build s3://${PROD_BUCKET_NAME}/${PROD_FOLDER_NAME}/${VERSION} --delete --cache-control max-age=31536000,public --region=us-west-2 --profile=debrief --exclude "*" --include static/js/* --content-encoding gzip
+	aws s3 sync build/static/js s3://${PROD_BUCKET_NAME}/${PROD_FOLDER_NAME}/${VERSION} --delete --cache-control max-age=31536000,public --region=us-west-2 --profile=debrief --content-encoding gzip
 
 define release
     NEXT_VERSION=`node -pe "require('semver').inc(\"${VERSION}\", '$(1)')"` && \
