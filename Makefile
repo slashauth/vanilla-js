@@ -24,7 +24,7 @@ build-prod: install
 		exit 1;\
 	fi
 	rm -rf build/
-	npm build
+	npm run build
 	./compress-files.sh
 
 .PHONY: push-prod
