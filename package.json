@@ -1,6 +1,6 @@
 {
   "name": "@slashauth/vanilla-js",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "dependencies": {
     "@coinbase/wallet-sdk": "^3.3.0",
