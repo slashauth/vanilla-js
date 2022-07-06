@@ -43,3 +43,7 @@ const decodeB64 = (input: string) =>
 
 export const urlDecodeB64 = (input: string) =>
   decodeB64(input.replace(/_/g, '/').replace(/-/g, '+'));
+
+export type ObjectMap = {
+  [key: string]: any;
+};

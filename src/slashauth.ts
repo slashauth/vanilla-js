@@ -5,6 +5,7 @@ import {
   getNonceToSign,
   loginWithSignedNonce,
   hasRoleAPICall,
+  getRoleMetadataAPICall,
 } from './api';
 import { CacheKey, CacheManager, LocalStorageCache } from './cache';
 import { CacheKeyManifest } from './cache/key-manifest';
@@ -26,7 +27,7 @@ import {
   RefreshTokenOptions,
 } from './global';
 import { retryPromise, singlePromise } from './promise';
-import { createQueryParams } from './utils';
+import { createQueryParams, ObjectMap } from './utils';
 import { verify as verifyIdToken } from './jwt';
 
 const lock = new Lock();
@@ -229,6 +230,24 @@ export class Slashauth {
       return resp.hasRole;
     } catch (err) {
       return false;
+    }
+  }
+
+  public async getRoleMetadata(roleName: string): Promise<ObjectMap | null> {
+    try {
+      const accessToken = (await this.getTokenSilently()) as string | null;
+      if (!accessToken) {
+        return null;
+      }
+      const resp = await getRoleMetadataAPICall({
+        baseUrl: getDomain(this.domainUrl),
+        clientID: this.clientID,
+        roleName,
+        accessToken,
+      });
+      return resp.metadata;
+    } catch (err) {
+      return null;
     }
   }
 

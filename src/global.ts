@@ -1,5 +1,6 @@
 import { ICache } from './cache';
 import { verify as verifyIdToken } from './jwt';
+import { ObjectMap } from './utils';
 
 export interface GetNonceToSignEndpointOptions {
   baseUrl: string;
@@ -287,3 +288,14 @@ export enum LoginStep {
   ReadyToLogin,
   LoggedIn,
 }
+
+export type GetRoleMetadataOptions = {
+  baseUrl: string;
+  clientID: string;
+  roleName: string;
+  accessToken: string;
+};
+
+export type GetRoleMetadataResponse = {
+  metadata: ObjectMap;
+};

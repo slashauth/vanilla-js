@@ -6,11 +6,9 @@ module.exports = function override(config) {
   Object.assign(fallback, {
     crypto: require.resolve('crypto-browserify'),
     stream: require.resolve('stream-browserify'),
-    assert: require.resolve('assert'),
     http: require.resolve('stream-http'),
     https: require.resolve('https-browserify'),
     os: require.resolve('os-browserify'),
-    url: require.resolve('url'),
   });
   config.resolve.fallback = fallback;
   config.plugins = (config.plugins || []).concat([
@@ -40,8 +38,9 @@ module.exports = function override(config) {
   const isEnvProduction = process.env.REACT_APP_ENV === "production";
   const isEnvDevelopment = !isEnvProduction || process.env.REACT_APP_ENV === "development";
   config.output = config.output || {};
+
   config.output.libraryTarget = "umd";
-  config.output.library = "NFTComponents";
+  config.output.library = "Slashauth";
   config.output.filename = isEnvProduction
       ? 'static/js/[name].js'
       : isEnvDevelopment && 'static/js/bundle.js';
