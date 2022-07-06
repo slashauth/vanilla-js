@@ -40,6 +40,7 @@ module.exports = function override(config) {
   const isEnvProduction = process.env.REACT_APP_ENV === "production";
   const isEnvDevelopment = !isEnvProduction || process.env.REACT_APP_ENV === "development";
   config.output = config.output || {};
+
   config.output.libraryTarget = "umd";
   config.output.library = "Slashauth";
   config.output.filename = isEnvProduction

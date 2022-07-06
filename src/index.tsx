@@ -1,4 +1,5 @@
 import { initializedEvent } from './events';
+import { LoginStep } from './global';
 import { Wallet } from './wallet';
 
 let clientID;
@@ -22,4 +23,4 @@ document.addEventListener('DOMContentLoaded', async () => {
   wallet.getConnectButton()?.dispatchEvent(initializedEvent());
 });
 
-export { Wallet };
+export { wallet, LoginStep };
