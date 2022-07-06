@@ -1,6 +1,6 @@
 {
   "name": "@slashauth/vanilla-js",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "private": true,
   "dependencies": {
     "@coinbase/wallet-sdk": "^3.3.0",
@@ -24,7 +24,7 @@
     "build": "react-app-rewired build",
     "test": "react-app-rewired test",
     "eject": "react-scripts eject",
-    "deploy:prod": "make deploy-prod"
+    "deploy:prod": "make push-prod"
   },
   "eslintConfig": {
     "extends": [

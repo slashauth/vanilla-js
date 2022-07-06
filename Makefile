@@ -57,6 +57,3 @@ release-minor:
 release-major:
 	@$(call release,major)
 
-.PHONY: deploy-prod
-deploy-prod: push-prod
-	aws s3 sync s3://${PROD_BUCKET_NAME}/${PROD_FOLDER_NAME}/${VERSION} s3://${PROD_BUCKET_NAME}/${PROD_FOLDER_NAME}/${VERSION} --region us-west-2 --profile debrief --delete
