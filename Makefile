@@ -8,6 +8,8 @@ CURRENT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 PROD_BRANCH := production
 PORCELAIN_STATUS := $(shell git status --porcelain)
 
+VERSION=$(shell node -pe "require('./package.json').version")
+
 PROD_BUCKET_NAME := slashauth-static-webpages
 PROD_FOLDER_NAME := prod-libs/vanilla-js
 
@@ -17,11 +19,6 @@ install:
 
 .PHONY: build-prod
 build-prod: install
-	# Deploying to prod can only be done on the production branch, and only when no local changes exist!
-	if [ ${CURRENT_BRANCH} != ${PROD_BRANCH} ]; then\
-		echo YOU CAN ONLY DEPLOY TO PRODUCTION FROM THE `production` BRANCH;\
-		exit 1;\
-	fi
 	if [[ ! -z "${PORCELAIN_STATUS}" ]]; then\
 		echo Refusing to deploy dirty changes to prod;\
 		exit 1;\
@@ -36,7 +33,27 @@ push-prod: build-prod
 	aws s3 sync build s3://${PROD_BUCKET_NAME}/${PROD_FOLDER_NAME}/${VERSION} --delete --cache-control max-age=31536000,public --region=us-west-2 --profile=debrief --exclude "*" --include static/css/* --content-encoding gzip
 	aws s3 sync build s3://${PROD_BUCKET_NAME}/${PROD_FOLDER_NAME}/${VERSION} --delete --cache-control max-age=31536000,public --region=us-west-2 --profile=debrief --exclude "*" --include static/js/* --content-encoding gzip
 
+define release
+    NEXT_VERSION=`node -pe "require('semver').inc(\"${VERSION}\", '$(1)')"` && \
+    node -e "\
+        var j = require('./package.json');\
+        j.version = \"$$NEXT_VERSION\";\
+        var s = JSON.stringify(j, null, 2);\
+        require('fs').writeFileSync('./package.json', s);"
+   	git commit -m "Version $$NEXT_VERSION" -- package.json && \
+    git tag "$$NEXT_VERSION" -m "Version $$NEXT_VERSION"
+endef
+
+.PHONY: release-patch
+release-patch:
+	@$(call release,patch)
+
+release-minor:
+	@$(call release,minor)
+
+release-major:
+	@$(call release,major)
+
 .PHONY: deploy-prod
 deploy-prod: push-prod
-	aws s3 --recursive mv s3://${PROD_BUCKET_NAME}/${PROD_FOLDER_NAME}/latest s3://${PROD_BUCKET_NAME}/${PROD_FOLDER_NAME}/latest-backup-${DATE} --region us-west-2 --profile debrief
-	aws s3 sync s3://${PROD_BUCKET_NAME}/${PROD_FOLDER_NAME}/${VERSION} s3://${PROD_BUCKET_NAME}/${PROD_FOLDER_NAME}/latest --region us-west-2 --profile debrief --delete
+	aws s3 sync s3://${PROD_BUCKET_NAME}/${PROD_FOLDER_NAME}/${VERSION} s3://${PROD_BUCKET_NAME}/${PROD_FOLDER_NAME}/${VERSION} --region us-west-2 --profile debrief --delete
