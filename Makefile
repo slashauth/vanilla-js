@@ -29,7 +29,12 @@ build-prod: install
 
 .PHONY: push-prod
 push-prod: build-prod
-	aws s3 sync build/static/js s3://${PROD_BUCKET_NAME}/${PROD_FOLDER_NAME}/${VERSION} --delete --cache-control max-age=31536000,public --region=us-west-2 --profile=debrief --content-encoding gzip
+	if [ -z "`aws s3 ls s3://slashauth-static-webpages/prod-libs/vanilla-js/0.1.0`" ]; then\
+		aws s3 sync build/static/js s3://${PROD_BUCKET_NAME}/${PROD_FOLDER_NAME}/${VERSION} --delete --cache-control max-age=31536000,public --region=us-west-2 --profile=debrief --content-encoding gzip;\
+	else\
+		echo This version has already been deployed. Updated versions are required to deploy.\
+		exit 1;\
+	fi
 
 define release
     NEXT_VERSION=`node -pe "require('semver').inc(\"${VERSION}\", '$(1)')"` && \
